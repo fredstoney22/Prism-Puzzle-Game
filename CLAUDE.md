@@ -139,6 +139,7 @@ Paid packs use Stripe Checkout. The API routes live in `apps/api/src/stripe/`. P
 - **File size**: target ≤300 lines; split when a file does more than one thing.
 - **Prefer editing existing files** over creating new ones — check for existing utilities before adding new ones.
 - **Explicit over clever**: readable code over one-liners.
+- **Class/DI design**: whenever you write or change application code (features, bug fixes, refactors), invoke the `/class-di-design` skill and follow it — focused classes with constructor dependency injection, keeping the diff minimal and reviewable.
 - **`.env.example` hygiene**: add/remove a key in `.env.example` every time you add/remove an env var in code.
 
 ---
@@ -148,6 +149,8 @@ Paid packs use Stripe Checkout. The API routes live in `apps/api/src/stripe/`. P
 - **Plan before coding**: for non-trivial tasks, outline the approach and confirm before making changes.
 - **TDD**: write or update tests first, then implement. Run the relevant test command before finalising any change.
 - **Commit style**: imperative subject line ≤50 chars with type prefix (`feat`, `fix`, `chore`, `refactor`, `test`, `docs`). One logical change per commit.
+- **Feature branch + PR for everything**: never commit or push directly to `main` — every change (code, docs, config, including `CLAUDE.md`/`AGENTS.md` edits) goes on a feature branch named per the `AGENTS.md` convention (`feature/`, `fix/`, `docs/`, `scout/` …) and lands only via a reviewed PR. Merging is the owner's call; don't merge your own PRs.
+- **Pull requests**: whenever you open a PR, invoke the `/create-pr` skill and follow it. PRs must be easy to understand and review: a ≤70-char title summarising the whole change, and a skimmable body with **Summary** (what and why, 1–3 sentences), **Changes** (notable changes grouped by area), and **Testing** (what was run and how to verify, or plainly "not tested"). Keep the diff focused on one change, and never commit secrets or unrelated files.
 - **Security**: never commit secrets. Validate all user input. Use parameterised queries. Don't log PII.
 
 ---

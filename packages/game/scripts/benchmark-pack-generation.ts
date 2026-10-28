@@ -275,6 +275,9 @@ interface ProtoPuzzle {
 	nullity: number;
 }
 
+/** Hard cap on min moves for any generated puzzle (owner decision). */
+const MAX_MIN_MOVES = 6;
+
 interface ProtoOptions {
 	pigments: Pigment[];
 	requireMultiColorLens: boolean;
@@ -292,7 +295,8 @@ function protoGenerate(
 	stats: { lensSets: number }
 ): ProtoPuzzle | null {
 	for (let attempt = 0; attempt < 400; attempt++) {
-		const k = targetMoves <= 3 ? 2 + Math.floor(Math.random() * 2) : 3;
+		// 1–3 lenses per puzzle (owner decision); more lenses for longer solutions.
+		const k = targetMoves <= 2 ? 1 : targetMoves <= 4 ? 1 + Math.floor(Math.random() * 2) : 3;
 		const lenses = Array.from({ length: k }, () => randomLens(opts.pigments, 3, 5));
 		if (opts.requireMultiColorLens && !lenses.some((l) => new Set(l.filter((p) => p)).size > 1)) {
 			continue;
@@ -306,9 +310,9 @@ function protoGenerate(
 		const candidates: ProtoPuzzle[] = [];
 		for (const [start, info] of space) {
 			if (info.minMoves !== targetMoves) continue; // exact min moves
-			if (info.minSetCount !== 1) continue; // unique minimal solution set
+			if (info.minMoves > MAX_MIN_MOVES) continue; // hard cap (owner decision)
 			const usedLenses = new Set(P.filter((_, i) => info.minSetMask & (1 << i)).map((p) => p.lens));
-			if (usedLenses.size !== k) continue; // every lens needed
+			if (usedLenses.size !== k) continue; // intended (minimal) solution uses every lens
 			if (popcount(dirtyCells(start)) < 5) continue; // ≥5 of 9 cells dirty
 			const overlap = overlapCells(info.minSetMask, P);
 			if (targetMoves >= 3 && overlap < 2) continue; // must reason about overlap
@@ -353,7 +357,7 @@ function runPrototype(label: string, opts: ProtoOptions): void {
 }
 
 function runPrototypeSuite(): void {
-	const ladder = [2, 2, 3, 3, 3, 4, 4, 4, 5, 5];
+	const ladder = [2, 2, 3, 3, 4, 4, 5, 5, 6, 6];
 	runPrototype('mono (pigment 1)', { pigments: [1], requireMultiColorLens: false, ladder });
 	runPrototype('color (R,Y,B; ≥1 multi)', {
 		pigments: [1, 2, 4],

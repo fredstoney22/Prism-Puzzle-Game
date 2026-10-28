@@ -13,7 +13,8 @@ export const DEV_PACK_SLUGS = [
 	'grid-4x4-dev',
 	'simple-mono-dev',
 	'monochrome',
-	'multicolor'
+	'multicolor',
+	'playtest-colors-dev'
 ] as const;
 
 export type DevPackSlug = (typeof DEV_PACK_SLUGS)[number];

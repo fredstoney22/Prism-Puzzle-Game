@@ -13,6 +13,14 @@ import {
 import type { PedagogyValidator } from './pedagogyValidator.js';
 import type { SolvabilityAnalyzer } from './solvabilityAnalyzer.js';
 import type { MuseAnalyzer } from './museAnalyzer.js';
+import { algebraicMinMovesSolver } from './algebraicMinMovesSolver.js';
+import { algebraicDifficultyEvaluator } from './algebraicDifficultyEvaluator.js';
+
+export { AlgebraicMinMovesSolver, algebraicMinMovesSolver } from './algebraicMinMovesSolver.js';
+export {
+	AlgebraicDifficultyEvaluator,
+	algebraicDifficultyEvaluator
+} from './algebraicDifficultyEvaluator.js';
 
 export type { DifficultyEvaluationProfile };
 
@@ -88,6 +96,7 @@ export const defaultDifficultyEvaluator: DifficultyEvaluator = {
 	}
 };
 
+/** Plain BFS solver — no longer the default (see {@link algebraicMinMovesSolver}), kept for explicit opt-in / comparison. */
 export const defaultMinMovesSolver: MinMovesSolver = {
 	solve: (config, maxDepth, options) => solveMinMoves(config, maxDepth, options)
 };
@@ -96,9 +105,12 @@ export const compositeCandidateScorer: CandidateScorer = {
 	score: compositeScrambleDifficultyScore
 };
 
+/** Plain BFS evaluator — no longer the default (see {@link algebraicDifficultyEvaluator}), kept for explicit opt-in / comparison. */
+export { defaultDifficultyEvaluator as bfsDifficultyEvaluator };
+
 export const defaultGenerationServices: GenerationServices = {
-	difficulty: defaultDifficultyEvaluator,
-	solver: defaultMinMovesSolver,
+	difficulty: algebraicDifficultyEvaluator,
+	solver: algebraicMinMovesSolver,
 	candidateScorer: compositeCandidateScorer
 };
 

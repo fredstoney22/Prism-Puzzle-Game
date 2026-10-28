@@ -52,6 +52,14 @@ export interface ForgivenessOptions {
 	includeGenerousFirstMoves?: boolean;
 	/** When set, estimate generosity from a random sample of opening moves. */
 	sampleFirstMoves?: number;
+	/**
+	 * Skip the exhaustive DFS for `shortestSolutionCount` and use this value
+	 * instead — for callers that already have a cheaper, exact-but-differently-
+	 * defined count (e.g. the algebraic evaluator's count of distinct minimal
+	 * move SETS, vs. this DFS's count of distinct ordered paths). Also disables
+	 * `solutionCountCapped`'s DFS-cap contribution, since this isn't DFS-capped.
+	 */
+	shortestSolutionCountOverride?: number;
 }
 
 interface InternalMove {
@@ -206,10 +214,14 @@ export function evaluateForgivenessMetrics(
 				.generousFirstMoveCount
 		: 0;
 
-	const shortestSolutionCount = countShortestPaths
-		? countSolutionPaths(config, minMoves, moves, cap)
-		: 1;
-	const cappedAfterShortest = countShortestPaths && shortestSolutionCount >= cap;
+	const shortestSolutionCount =
+		options.shortestSolutionCountOverride ??
+		(countShortestPaths ? countSolutionPaths(config, minMoves, moves, cap) : 1);
+	// The override is an exact algebraic count, not DFS-capped — only the DFS path counts.
+	const cappedAfterShortest =
+		options.shortestSolutionCountOverride === undefined &&
+		countShortestPaths &&
+		shortestSolutionCount >= cap;
 	const nearOptimalSolutionCount =
 		!includeNearOptimal || cappedAfterShortest
 			? 0

@@ -193,6 +193,50 @@ export const PACK_GENERATION_SPECS: PackGenerationSpec[] = [
 			},
 			pruneUnusedTemplates: true
 		}
+	},
+	/** Dev-only: 5-puzzle multicolor-shaped pack for timing the algebraic generation pipeline end to end. */
+	{
+		name: 'Algebraic Timing Test (Dev)',
+		slug: 'algebraic-timing-test-dev',
+		access: 'free',
+		pool: {
+			puzzleCount: 5,
+			candidatesPerPack: 15,
+			puzzleSize: 3,
+			kind: 'color',
+			allowedPigments: [1, 2, 4] as Pigment[],
+			templateCount: 3,
+			minMultiColoredTemplates: 1,
+			minTemplatesPerPigment: 1,
+			scramble: {
+				maxMoves: 15,
+				maxExtraAfterCoverage: 3,
+				rotateSameTemplateWeight: 0.25
+			},
+			pruneUnusedTemplates: true
+		}
+	},
+	/** Dev-only: 12-puzzle multicolor-shaped pack for manual playtesting the generation pipeline. */
+	{
+		name: 'Playtest Colors (Dev)',
+		slug: 'playtest-colors-dev',
+		access: 'free',
+		pool: {
+			puzzleCount: 12,
+			candidatesPerPack: 36,
+			puzzleSize: 3,
+			kind: 'color',
+			allowedPigments: [1, 2, 4] as Pigment[],
+			templateCount: 3,
+			minMultiColoredTemplates: 1,
+			minTemplatesPerPigment: 1,
+			scramble: {
+				maxMoves: 15,
+				maxExtraAfterCoverage: 3,
+				rotateSameTemplateWeight: 0.25
+			},
+			pruneUnusedTemplates: true
+		}
 	}
 ];
 

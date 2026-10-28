@@ -10,7 +10,8 @@ describe('devPacks', () => {
 			'grid-4x4-dev',
 			'simple-mono-dev',
 			'monochrome',
-			'multicolor'
+			'multicolor',
+			'playtest-colors-dev'
 		]);
 	});
 
@@ -22,6 +23,7 @@ describe('devPacks', () => {
 		expect(isDevPack('simple-mono-dev')).toBe(true);
 		expect(isDevPack('monochrome')).toBe(true);
 		expect(isDevPack('multicolor')).toBe(true);
+		expect(isDevPack('playtest-colors-dev')).toBe(true);
 	});
 
 	it('rejects non-dev pack slugs', () => {

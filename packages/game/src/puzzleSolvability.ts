@@ -5,7 +5,7 @@
  * relative to the puzzle solved value and columns of A are lens placements.
  */
 
-import { getDistinctTemplateOrientations } from './templatePigment.js';
+import { orientTemplate } from './templatePigment.js';
 import { isMonochromeFlipPuzzle } from './puzzleNormalize.js';
 import type { Pigment, PuzzleConfig, PuzzleGrid, PuzzleTemplate } from './types.js';
 
@@ -32,7 +32,11 @@ export interface SolvabilityAnalysisOptions {
 	includeRotations?: boolean;
 }
 
-interface PlacementMove {
+/** One column of the move matrix, with enough info to render back as a player move. */
+export interface PlacementMove {
+	templateIndex: number;
+	/** Clockwise quarter turns from the stencil's default orientation. */
+	rotation: number;
 	template: PuzzleTemplate;
 	row: number;
 	col: number;
@@ -43,6 +47,8 @@ interface MoveMatrix {
 	stateDimension: number;
 	/** Row-major GF(2) matrix: `stateDimension × placementCount`. */
 	rows: Uint8Array[];
+	/** Column `i` of `rows` is the placement `placements[i]`. */
+	placements: PlacementMove[];
 }
 
 function enumeratePlacements(
@@ -52,17 +58,27 @@ function enumeratePlacements(
 ): PlacementMove[] {
 	const moves: PlacementMove[] = [];
 
-	for (const template of templates) {
-		const orientations = includeRotations
-			? getDistinctTemplateOrientations(template)
-			: [template];
+	for (let templateIndex = 0; templateIndex < templates.length; templateIndex++) {
+		const base = templates[templateIndex];
+		const orientations: { template: PuzzleTemplate; rotation: number }[] = [];
+		const seenShapes = new Set<string>();
 
-		for (const oriented of orientations) {
+		const rotationCount = includeRotations ? 4 : 1;
+		for (let rotation = 0; rotation < rotationCount; rotation++) {
+			const oriented = orientTemplate(base, rotation);
+			const key = oriented.shape.map((row) => row.join('')).join('|');
+			if (!seenShapes.has(key)) {
+				seenShapes.add(key);
+				orientations.push({ template: oriented, rotation });
+			}
+		}
+
+		for (const { template: oriented, rotation } of orientations) {
 			const tRows = oriented.shape.length;
 			const tCols = oriented.shape[0]?.length ?? 0;
 			for (let row = 0; row <= puzzleSize - tRows; row++) {
 				for (let col = 0; col <= puzzleSize - tCols; col++) {
-					moves.push({ template: oriented, row, col });
+					moves.push({ templateIndex, rotation, template: oriented, row, col });
 				}
 			}
 		}
@@ -79,7 +95,7 @@ function flatCellIndex(row: number, col: number, size: number): number {
 	return row * size + col;
 }
 
-function encodeStateDelta(
+export function encodeStateDelta(
 	startState: PuzzleGrid,
 	solvedValue: Pigment,
 	encoding: SolvabilityEncoding
@@ -157,7 +173,7 @@ export function buildMoveMatrix(
 	const stateDimension = encoding === 'mono-bit' ? size * size : size * size * 3;
 
 	if (placements.length === 0) {
-		return { encoding, stateDimension, rows: [] };
+		return { encoding, stateDimension, rows: [], placements: [] };
 	}
 
 	const columns = placements.map((move) => buildPlacementColumn(move, size, encoding));
@@ -169,19 +185,34 @@ export function buildMoveMatrix(
 		return row;
 	});
 
-	return { encoding, stateDimension, rows };
+	return { encoding, stateDimension, rows, placements };
 }
 
-function gf2Rank(rows: Uint8Array[]): number {
-	if (rows.length === 0) return 0;
-	const rowCount = rows.length;
-	const colCount = rows[0].length;
-	if (colCount === 0) return 0;
+export interface Gf2RowReduceResult {
+	/** Row-reduced matrix (RREF within the searched pivot columns). */
+	matrix: Uint8Array[];
+	/** Pivot column for each row, or null if that row never became a pivot row. */
+	pivotColByRow: (number | null)[];
+	rank: number;
+}
 
+/**
+ * Full GF(2) row reduction (RREF), searching for pivots only within the first
+ * `pivotSearchColCount` columns. Extra trailing columns (e.g. an augmented target
+ * vector — see puzzleAlgebraicSolver.ts) are carried along by the row operations
+ * but never chosen as pivots. Exposed (not just a rank count) so callers can also
+ * read off a particular solution and a kernel basis from the reduced matrix.
+ */
+export function gf2RowReduce(rows: Uint8Array[], pivotSearchColCount: number): Gf2RowReduceResult {
+	const rowCount = rows.length;
+	if (rowCount === 0) return { matrix: [], pivotColByRow: [], rank: 0 };
+
+	const totalCols = rows[0].length;
 	const matrix = rows.map((row) => Uint8Array.from(row));
+	const pivotColByRow: (number | null)[] = new Array(rowCount).fill(null);
 	let rank = 0;
 
-	for (let col = 0; col < colCount && rank < rowCount; col++) {
+	for (let col = 0; col < pivotSearchColCount && rank < rowCount; col++) {
 		let pivotRow = -1;
 		for (let r = rank; r < rowCount; r++) {
 			if (matrix[r][col] === 1) {
@@ -199,16 +230,24 @@ function gf2Rank(rows: Uint8Array[]): number {
 
 		for (let r = 0; r < rowCount; r++) {
 			if (r !== rank && matrix[r][col] === 1) {
-				for (let j = col; j < colCount; j++) {
+				for (let j = col; j < totalCols; j++) {
 					matrix[r][j] ^= matrix[rank][j];
 				}
 			}
 		}
 
+		pivotColByRow[rank] = col;
 		rank++;
 	}
 
-	return rank;
+	return { matrix, pivotColByRow, rank };
+}
+
+function gf2Rank(rows: Uint8Array[]): number {
+	if (rows.length === 0) return 0;
+	const colCount = rows[0].length;
+	if (colCount === 0) return 0;
+	return gf2RowReduce(rows, colCount).rank;
 }
 
 function isZeroVector(vector: Uint8Array): boolean {

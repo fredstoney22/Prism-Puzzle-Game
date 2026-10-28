@@ -91,7 +91,7 @@ function pigmentSignature(template: PuzzleTemplate): string {
 	return distinctPigmentsInTemplate(template).join(',');
 }
 
-function countColorChanges(solution: SolutionMove[], templates: PuzzleTemplate[]): number {
+export function countColorChanges(solution: SolutionMove[], templates: PuzzleTemplate[]): number {
 	if (solution.length <= 1) return 0;
 
 	let changes = 0;
@@ -105,7 +105,7 @@ function countColorChanges(solution: SolutionMove[], templates: PuzzleTemplate[]
 	return changes;
 }
 
-function countRotationMetrics(solution: SolutionMove[]): {
+export function countRotationMetrics(solution: SolutionMove[]): {
 	rotationsRequired: number;
 	rotationQuarterTurns: number;
 } {

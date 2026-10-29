@@ -1,19 +1,24 @@
 import type { PuzzleConfig } from '@flip/game';
 import { PIGMENT_CLEAR_SOLVED_VALUE } from '@flip/game';
 
-/** Tutorial: two moves, second requires rotating the template 90°. */
+/**
+ * Tutorial: one 3×3 lens, two moves. The first move uses the lens as dealt;
+ * the second needs it rotated 90° clockwise (after a move the lens is
+ * deselected, so that is two taps: select, then rotate).
+ * The two orientations cover disjoint cells, so each move only clears colour.
+ */
 export const TUTORIAL_PUZZLE_CONFIG: PuzzleConfig = {
   startState: [
-    [0, 1, 0],
     [1, 1, 1],
-    [0, 1, 0]
+    [1, 0, 0],
+    [0, 0, 0]
   ],
   templates: [
     {
       shape: [
-        [0, 0, 1],
-        [0, 1, 0],
-        [1, 0, 0]
+        [1, 0, 0],
+        [1, 0, 0],
+        [0, 0, 0]
       ]
     }
   ],

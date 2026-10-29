@@ -92,7 +92,7 @@ There are also small copy nits: `GOAL` is an empty string, so card bodies start 
 
 ### What happens to the existing `/tutorial` and First Steps
 
-- **`/tutorial`:** Keep the route and fix B1 only. Once the tutorial pack ships, consider pointing the no-params `/tutorial` at tutorial pack puzzle 1 (optional T11). That isn't the First Steps redirect the owner rejected; it just stops two separate beginner experiences from drifting apart.
+- **`/tutorial`:** Keep the route and fix B1 only. Once the tutorial pack ships, consider pointing the no-params `/tutorial` at tutorial pack puzzle 1 (T11, optional and needs owner go-ahead). It differs from the First Steps redirect the owner rejected, but still needs explicit approval. It would stops two separate beginner experiences from drifting apart.
 - **First Steps:** Keep it as a free practice pack and fix B2 and B3 only. Move its "Start here!" tagline (`PACK_SHORT_DESCRIPTIONS`) to the tutorial pack so there's one obvious starting point. Leave its walkthrough copy alone.
 
 ---
@@ -153,10 +153,10 @@ The 2-move minimum rules out a one-tap opener. Puzzle 1 uses two lenses at the d
 
 ### 5.2 Hints (C)
 
-Scope the hint layer to the tutorial pack:
-- An idle nudge on the lens after about 5 s with no selection.
-- A rotate cue when a puzzle needs rotation and the player has applied without rotating.
-- After N moves past the minimum, a highlight via the existing Hint, with an inline message instead of `alert()`.
+Scope the hint layer to the tutorial pack. Default thresholds, all kept as named constants so they can be tuned:
+- **Idle nudge:** a pulse on the lens after **8 s** on a puzzle with no lens selected. Long enough to take in a 3×3 board, short enough to catch a player who doesn't know what to tap.
+- **Rotate cue:** on a puzzle that needs rotation, shown after the **first move made without any rotation**. That's the earliest point where the player has clearly missed the mechanic.
+- **Stuck highlight:** the existing Hint fires automatically once the move count reaches **minimum + 2** (`minMovesToSolve + 2`), or after **30 s** with no move. On 2–6 move puzzles, +2 means the player has clearly left the optimal path without the hint feeling hair-trigger. 30 s is roughly 4× the idle nudge. The message appears inline instead of in an `alert()`.
 
 ### 5.3 Main-page link
 
@@ -182,7 +182,7 @@ Each row is one PR. T1–T3 are bug fixes with no dependencies.
 | T6 | Ship tutorial pack with one-line walkthrough | Register the pack in `PRODUCTION_PACK_SLUGS` as free, list it first in `/play`, move the "Start here!" tagline from First Steps, add a `PACK_DESCRIPTIONS` entry, and register one persistent one-sentence card per puzzle in `tutorialRegistry.ts`. Don't auto-open How to Play. Hide par and star rating on this pack. Playwright smoke: open puzzle 1 and see the card. | T4, T5 |
 | T7 | Add "Learn to play" link to home page | Prominent card at the top of `apps/app/src/routes/+page.svelte`, above the daily card, linking to tutorial pack puzzle 1. No auto-routing. Update `apps/app/tests/smoke.test.ts`. | T6 |
 | T8 | Remember tutorial completion in browser | On solving the last tutorial pack puzzle, set a `localStorage` flag (try/catch, next to `tutorialProgress.ts`). The home card shows a compact "Replay tutorial" link when the flag is set. No server record. Unit test for the flag helper. | T7 |
-| T9 | In-place hint layer for tutorial pack | Coach marks anchored to the lens and board: an idle nudge, a rotate cue when rotation is required but unused, escalation to the existing Hint, and an inline message replacing the Hint `window.alert`. Driven by `tutorialProgress` events plus a timer. Respects `prefers-reduced-motion`. Enabled only for the tutorial pack. | T6 |
-| T10 | Onboarding funnel events (optional) | Emit events for tutorial puzzle start and solve, hints shown or used, and skip, so T6/T9 can be measured. No PII. | T6 |
-| T11 | Point /tutorial at the tutorial pack (optional) | Make no-params `/tutorial` load tutorial pack puzzle 1 instead of the built-in puzzle. Keep `?pack=&id=` behaviour. Update e2e tests. | T6 |
+| T9 | In-place hint layer for tutorial pack | Coach marks anchored to the lens and board, enabled only for the tutorial pack and driven by `tutorialProgress` events plus a timer. Default thresholds as named, tunable constants: (1) idle nudge, a pulse on the lens after 8 s with no lens selected (time to read a 3×3 board, still early help); (2) rotate cue after the first move made without rotating, on puzzles that need rotation (the earliest sign the mechanic was missed); (3) auto-trigger the existing Hint highlight when moves reach `minMovesToSolve + 2` or after 30 s with no move (+2 means clearly off the optimal path on 2–6 move puzzles; 30 s is about 4× the idle nudge). Replace the Hint `window.alert` with an inline message. Respects `prefers-reduced-motion`. Unit tests for the trigger logic using fake timers. | T6 |
+| T10 | Onboarding funnel events (optional; owner decision first) | **Step 1, owner decision: choose an analytics destination (e.g. a provider or a first-party API endpoint), or drop this step.** The app has no analytics today, so don't build anything until the owner answers. If a destination is chosen: emit events for tutorial puzzle start and solve, hints shown or used, and walkthrough skip, so T6/T9 can be measured. No PII. | T6 |
+| T11 | Point /tutorial at the tutorial pack (optional, needs owner go-ahead) | **Optional, needs owner go-ahead before starting.** The owner rejected redirecting `/tutorial` to First Steps, so this different redirect must be confirmed explicitly. If approved: make no-params `/tutorial` load tutorial pack puzzle 1 instead of the built-in puzzle, keep `?pack=&id=` behaviour, and update the e2e tests. | T6 |
 | T12 | Animated demo on home link card (optional) | A 5–8 s scripted loop (select, rotate, apply, board turns white) inside the T7 card. Tap to start the tutorial. Paused under reduced motion. | T7 |

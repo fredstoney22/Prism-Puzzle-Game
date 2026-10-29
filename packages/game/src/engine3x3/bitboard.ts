@@ -46,6 +46,7 @@ const SIZE = 3;
 const CELLS = SIZE * SIZE;
 const CELL_MASK = 0x1ff;
 const LAYERS = 3;
+const VEC_MAX = 2 ** (LAYERS * CELLS) - 1;
 
 function isPigment(value: unknown): value is Pigment {
 	return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 7;
@@ -88,8 +89,11 @@ export function gridToVec(grid: PuzzleGrid, what = 'Grid'): Vec {
 	return vec;
 }
 
-/** Unpacks a Vec into a fresh 3×3 pigment grid. */
+/** Unpacks a Vec into a fresh 3×3 pigment grid. Throws `RangeError` outside 0..2^27-1. */
 export function vecToGrid(vec: Vec): PuzzleGrid {
+	if (!Number.isInteger(vec) || vec < 0 || vec > VEC_MAX) {
+		throw new RangeError(`Vec ${vec} is not a 27-bit board`);
+	}
 	const grid: PuzzleGrid = [];
 	for (let r = 0; r < SIZE; r++) {
 		const row: Pigment[] = [];
@@ -137,40 +141,57 @@ function uniformVec(pigment: number): Vec {
 /** Vec of a board with every cell set to pigment `p`, indexed by `p`. */
 const UNIFORM_VECS: readonly Vec[] = [0, 1, 2, 3, 4, 5, 6, 7].map(uniformVec);
 
-/** Bitboard counterpart of `isSolved`: every cell equals `solvedValue` (default clear). */
-export function isSolvedVec(vec: Vec, solvedValue: Pigment = 0): boolean {
+/** Bitboard counterpart of `isSolved`: every cell equals `solvedValue`. */
+export function isSolvedVec(vec: Vec, solvedValue: Pigment): boolean {
 	return vec === UNIFORM_VECS[solvedValue];
 }
 
 /**
- * All legal moves for a lens set on a 3×3 board: each lens at each of its
- * distinct rotations 0–3. Dedup is per lens (rotational symmetry only), so every
- * non-empty lens owns its own placements even when it is a rotation or copy of
- * another lens; those placements then share a `vec`. Empty lenses are no-ops and
- * get no placements.
+ * All legal moves for a lens set on a 3×3 board: each lens at each rotation
+ * 0–3 whose orientation differs from that lens's earlier rotations (a lens's
+ * rotation orbit has length 1, 2 or 4).
+ *
+ * Distinctness is per lens, not across the set: a lens that is a copy or a
+ * rotation of another lens still owns its own placements, so `placement.lens`
+ * credits every lens. Such placements share a `vec`, so the returned `vec`s are
+ * not necessarily pairwise distinct; callers that need distinct move vectors
+ * must dedup by `vec` themselves. Empty lenses are no-ops and get no placements.
  */
 export function placementsFor(lenses: Vec[]): Placement[] {
 	const placements: Placement[] = [];
 	lenses.forEach((lensVec, lens) => {
 		if (lensVec === 0) return;
-		const seen = new Set<Vec>();
 		let vec = lensVec;
 		for (let rotation = 0; rotation < 4; rotation++) {
-			if (!seen.has(vec)) {
-				seen.add(vec);
-				placements.push({ lens, rotation, vec });
-			}
+			if (rotation > 0 && vec === lensVec) break;
+			placements.push({ lens, rotation, vec });
 			vec = rotateVec(vec);
 		}
 	});
 	return placements;
 }
 
-/** Packs a 3×3-board / 3×3-lens `PuzzleConfig`. Throws `InvalidGridError` otherwise. */
+/**
+ * Packs a 3×3-board / 3×3-lens `PuzzleConfig`. Throws `InvalidGridError` for an
+ * invalid board, templates list, lens, or `solvedValue` (must be an integer 0–7).
+ */
 export function configToVec(config: PuzzleConfig): PuzzleVecs {
+	const templates: unknown = config.templates;
+	if (!Array.isArray(templates)) {
+		throw new InvalidGridError('Templates', 'must be an array');
+	}
+	if (!isPigment(config.solvedValue)) {
+		throw new InvalidGridError('solvedValue', 'must be an integer pigment 0–7');
+	}
+	const lenses = templates.map((template: unknown, i) => {
+		if (typeof template !== 'object' || template === null || !('shape' in template)) {
+			throw new InvalidGridError(`Lens ${i}`, 'must be a template with a shape');
+		}
+		return gridToVec(template.shape as PuzzleGrid, `Lens ${i}`);
+	});
 	const vecs: PuzzleVecs = {
 		start: gridToVec(config.startState, 'Board'),
-		lenses: config.templates.map((t, i) => gridToVec(t.shape, `Lens ${i}`)),
+		lenses,
 		solvedValue: config.solvedValue
 	};
 	if (config.minMovesToSolve !== undefined) vecs.minMovesToSolve = config.minMovesToSolve;

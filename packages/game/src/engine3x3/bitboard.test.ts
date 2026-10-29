@@ -163,7 +163,7 @@ describe('engine3x3/bitboard', () => {
 			const solvedValue = randomPigment(rand);
 			expect(isSolvedVec(gridToVec(grid), solvedValue)).toBe(isSolved(grid, solvedValue));
 		}
-		expect(isSolvedVec(0)).toBe(true);
+		expect(isSolvedVec(0, 0)).toBe(true);
 	});
 
 	it('popcount and dirtyCells count bits and non-clear cells', () => {
@@ -233,6 +233,26 @@ describe('engine3x3/bitboard', () => {
 		expect(() =>
 			configToVec({ startState: vecToGrid(0), templates: [lens], solvedValue: 0 })
 		).toThrow('Lens 0');
+	});
+
+	it('rejects an invalid solvedValue or templates list with InvalidGridError', () => {
+		const board = vecToGrid(0);
+		const lens: PuzzleTemplate = { shape: vecToGrid(1) };
+		for (const solvedValue of [8, -1, 1.5, null, undefined, '0']) {
+			const config = { startState: board, templates: [lens], solvedValue } as unknown;
+			expect(() => configToVec(config as PuzzleConfig)).toThrow(InvalidGridError);
+		}
+		for (const templates of [undefined, null, 'x', [null], [{}], [{ shape: null }]]) {
+			const config = { startState: board, templates, solvedValue: 0 } as unknown;
+			expect(() => configToVec(config as PuzzleConfig)).toThrow(InvalidGridError);
+		}
+	});
+
+	it('vecToGrid rejects values outside 27 bits', () => {
+		for (const vec of [-1, 1 << 27, 2 ** 31, 0.5, Number.NaN]) {
+			expect(() => vecToGrid(vec)).toThrow(RangeError);
+		}
+		expect(vecToGrid(0x7ffffff)).toEqual([0, 1, 2].map(() => [7, 7, 7]));
 	});
 
 	it('rejects configs that are not 3x3 board with 3x3 lenses', () => {

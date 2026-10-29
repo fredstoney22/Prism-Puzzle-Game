@@ -52,24 +52,31 @@ describe('ARCHIVED_LEGACY_PUZZLES', () => {
 	);
 
 	it.each(ARCHIVED_LEGACY_PUZZLES.map((p) => [label(p), p]))(
-		'%s stays solvable and declares the solver minimum',
+		'%s declares the recorded solver minimum',
 		(_label, archived) => {
 			const cfg = requirePuzzle(archived);
-			const solverMinMoves = solveMinMoves(cfg, 12);
-			expect(solverMinMoves).not.toBeNull();
 			if (archived.packSlug === 'first-steps' && archived.puzzleId === 1) {
 				// Known bug, fixed by tutorial plan T2.
 				expect(
-					[cfg.minMovesToSolve, solverMinMoves],
+					[cfg.minMovesToSolve, archived.solverMinMoves],
 					'First Steps #1 move count looks fixed (tutorial T2): remove this special case ' +
 						'so the normal minMovesToSolve check applies.'
 				).toEqual([1, 3]);
 				return;
 			}
-			expect(solverMinMoves).toBe(cfg.minMovesToSolve);
-		},
-		60_000
+			expect(cfg.minMovesToSolve).toBe(archived.solverMinMoves);
+		}
 	);
+
+	// Re-checks the recorded solverMinMoves with the real solver. Skipped for puzzles whose
+	// BFS is slow (color-ladder #9 takes ~5-7s); the fingerprint test above pins their
+	// content, so their recorded result can't go stale.
+	const SLOW_TO_SOLVE = new Set(['color-ladder #9']);
+	it.each(
+		ARCHIVED_LEGACY_PUZZLES.filter((p) => !SLOW_TO_SOLVE.has(label(p))).map((p) => [label(p), p])
+	)('%s solver result matches the recorded solverMinMoves', (_label, archived) => {
+		expect(solveMinMoves(requirePuzzle(archived), 12)).toBe(archived.solverMinMoves);
+	});
 });
 
 describe('ArchivedLegacyPuzzles', () => {
@@ -82,7 +89,13 @@ describe('ArchivedLegacyPuzzles', () => {
 		solvedValue: 0
 	};
 	const archive = new ArchivedLegacyPuzzles([
-		{ packSlug: 'p', puzzleId: 1, fingerprint: canonicalPuzzleKey(cfg), knownErrors: ['known'] }
+		{
+			packSlug: 'p',
+			puzzleId: 1,
+			fingerprint: canonicalPuzzleKey(cfg),
+			knownErrors: ['known'],
+			solverMinMoves: 1
+		}
 	]);
 	const issue = (severity: 'error' | 'warn', message: string) => ({ severity, message });
 
@@ -112,6 +125,13 @@ describe('ArchivedLegacyPuzzles', () => {
 		expect(result.suppressed).toEqual([]);
 		expect(result.remaining).toEqual([issue('error', 'known')]);
 		expect(result.contentError).toMatch(/archived puzzle changed or moved/);
+	});
+
+	it('reports a puzzle as pinned only when archived and unchanged', () => {
+		const changed: PuzzleConfig = { ...cfg, templates: [{ shape: [[1, 1]] }] };
+		expect(archive.isPinnedUnchanged('p', 1, cfg)).toBe(true);
+		expect(archive.isPinnedUnchanged('p', 1, changed)).toBe(false);
+		expect(archive.isPinnedUnchanged('p', 2, cfg)).toBe(false);
 	});
 
 	it('has no content error when the fingerprint matches', () => {

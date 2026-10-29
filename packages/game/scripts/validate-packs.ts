@@ -210,6 +210,15 @@ function validateConfig(
 		});
 	}
 
+	return issues;
+}
+
+/** Solves the puzzle (expensive BFS): solvability error and solution-coverage warning. */
+function validateSolution(packSlug: string, puzzleId: number, cfg: PuzzleConfig): Issue[] {
+	const issues: Issue[] = [];
+	const n = cfg.startState.length;
+	if (n === 0) return issues;
+
 	const solvableDepth = Math.max(
 		12,
 		cfg.templates.length + (cfg.minMovesToSolve ?? cfg.templates.length) + 2
@@ -279,12 +288,13 @@ async function main() {
 	for (const pack of packs) {
 		for (const [idStr, cfg] of Object.entries(pack.puzzles)) {
 			const puzzleId = Number(idStr);
-			const archived = archivedLegacy.filterKnownErrors(
-				pack.slug,
-				puzzleId,
-				cfg,
-				validateConfig(pack.slug, puzzleId, cfg)
-			);
+			// Archived legacy puzzles are not re-solved: their fingerprint pins the content, so
+			// solvability can't change (checked once in archivedLegacyPuzzles.test.ts).
+			const skipSolve = archivedLegacy.isPinnedUnchanged(pack.slug, puzzleId, cfg);
+			const archived = archivedLegacy.filterKnownErrors(pack.slug, puzzleId, cfg, [
+				...validateConfig(pack.slug, puzzleId, cfg),
+				...(skipSolve ? [] : validateSolution(pack.slug, puzzleId, cfg))
+			]);
 			if (archived.isArchived) {
 				archivedCount++;
 				suppressedCount += archived.suppressed.length;

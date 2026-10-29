@@ -13,7 +13,8 @@ concurrency:
 jobs:
   quality:
     name: Lint, unit tests, and build
-    runs-on: ubuntu-latest
+    # Pinned: Playwright 1.58.2 does not support ubuntu-latest (26.04). Revisit when Playwright is upgraded.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: .
@@ -48,7 +49,8 @@ jobs:
 
   e2e:
     name: Playwright smoke tests
-    runs-on: ubuntu-latest
+    # Pinned: Playwright 1.58.2 does not support ubuntu-latest (26.04). Revisit when Playwright is upgraded.
+    runs-on: ubuntu-24.04
     needs: quality
     defaults:
       run:

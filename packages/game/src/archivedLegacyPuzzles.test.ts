@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { solveMinMoves } from './PuzzleGenerator.js';
 import { packs } from './packs.js';
+import { canonicalPuzzleKey } from './puzzleCanonical.js';
 import type { PuzzleConfig } from './types.js';
 import {
 	ARCHIVED_LEGACY_PUZZLES,
@@ -8,62 +9,117 @@ import {
 	type ArchivedLegacyPuzzle
 } from './archivedLegacyPuzzles.js';
 
-const EXPECTED_ARCHIVE = [
-	'first-steps #1',
-	'first-steps #6',
-	'color-ladder #7',
-	'color-ladder #8',
-	'color-ladder #9',
-	'color-ladder #10'
-];
-
 const label = (p: ArchivedLegacyPuzzle): string => `${p.packSlug} #${p.puzzleId}`;
 
-function puzzleFor(archived: ArchivedLegacyPuzzle): PuzzleConfig | undefined {
-	return packs.find((p) => p.slug === archived.packSlug)?.puzzles[archived.puzzleId];
+function requirePuzzle(archived: ArchivedLegacyPuzzle): PuzzleConfig {
+	const cfg = packs.find((p) => p.slug === archived.packSlug)?.puzzles[archived.puzzleId];
+	expect(cfg, `${label(archived)} is missing from packs.ts`).toBeDefined();
+	if (cfg === undefined) throw new Error(`${label(archived)} is missing from packs.ts`);
+	return cfg;
 }
 
 describe('ARCHIVED_LEGACY_PUZZLES', () => {
-	it('is frozen to the one-time 2026-10-29 archive', () => {
+	it('is frozen to the one-time 2026-10-29 archive (6 puzzles, 7 known errors)', () => {
 		expect(
 			ARCHIVED_LEGACY_PUZZLES.map(label),
-			'The legacy archive is closed. Do not add puzzles here: create new puzzles with the 3x3 ' +
-				'creation engine so they pass game:validate; see docs/generation-engine-overhaul.md.'
-		).toEqual(EXPECTED_ARCHIVE);
+			'The legacy archive is closed. Do not add puzzles here: new puzzles must pass ' +
+				'game:validate; create them with the planned 3x3 creation engine ' +
+				'(docs/generation-engine-overhaul.md).'
+		).toEqual([
+			'first-steps #1',
+			'first-steps #6',
+			'color-ladder #7',
+			'color-ladder #8',
+			'color-ladder #9',
+			'color-ladder #10'
+		]);
+		expect(ARCHIVED_LEGACY_PUZZLES.flatMap((p) => p.knownErrors)).toHaveLength(7);
+	});
+
+	it('is deeply frozen', () => {
 		expect(Object.isFrozen(ARCHIVED_LEGACY_PUZZLES)).toBe(true);
+		for (const entry of ARCHIVED_LEGACY_PUZZLES) {
+			expect(Object.isFrozen(entry), label(entry)).toBe(true);
+			expect(Object.isFrozen(entry.knownErrors), label(entry)).toBe(true);
+		}
 	});
 
 	it.each(ARCHIVED_LEGACY_PUZZLES.map((p) => [label(p), p]))(
-		'%s still exists in packs.ts',
+		'%s still exists with unchanged content (fingerprint matches)',
 		(_label, archived) => {
-			expect(puzzleFor(archived)).toBeDefined();
+			expect(canonicalPuzzleKey(requirePuzzle(archived))).toBe(archived.fingerprint);
 		}
 	);
-
-	// First Steps #1's declared move count is a known bug left to tutorial plan T2.
-	const hasKnownMoveCountBug = (p: ArchivedLegacyPuzzle): boolean =>
-		p.packSlug === 'first-steps' && p.puzzleId === 1;
 
 	it.each(ARCHIVED_LEGACY_PUZZLES.map((p) => [label(p), p]))(
 		'%s stays solvable and declares the solver minimum',
 		(_label, archived) => {
-			const cfg = puzzleFor(archived) as PuzzleConfig;
+			const cfg = requirePuzzle(archived);
 			const solverMinMoves = solveMinMoves(cfg, 12);
 			expect(solverMinMoves).not.toBeNull();
-			if (!hasKnownMoveCountBug(archived)) {
-				expect(solverMinMoves).toBe(cfg.minMovesToSolve);
+			if (archived.packSlug === 'first-steps' && archived.puzzleId === 1) {
+				// Known bug, fixed by tutorial plan T2.
+				expect(
+					[cfg.minMovesToSolve, solverMinMoves],
+					'First Steps #1 move count looks fixed (tutorial T2): remove this special case ' +
+						'so the normal minMovesToSolve check applies.'
+				).toEqual([1, 3]);
+				return;
 			}
+			expect(solverMinMoves).toBe(cfg.minMovesToSolve);
 		},
 		60_000
 	);
 });
 
 describe('ArchivedLegacyPuzzles', () => {
-	const archive = new ArchivedLegacyPuzzles([{ packSlug: 'p', puzzleId: 1 }]);
+	const cfg: PuzzleConfig = {
+		startState: [
+			[1, 0],
+			[0, 0]
+		],
+		templates: [{ shape: [[1]] }],
+		solvedValue: 0
+	};
+	const archive = new ArchivedLegacyPuzzles([
+		{ packSlug: 'p', puzzleId: 1, fingerprint: canonicalPuzzleKey(cfg), knownErrors: ['known'] }
+	]);
+	const issue = (severity: 'error' | 'warn', message: string) => ({ severity, message });
 
-	it('matches only the exact pack and puzzle', () => {
-		expect(archive.isArchived('p', 1)).toBe(true);
-		expect(archive.isArchived('p', 2)).toBe(false);
-		expect(archive.isArchived('q', 1)).toBe(false);
+	it('ignores puzzles that are not archived', () => {
+		const issues = [issue('error', 'known')];
+		const result = archive.filterKnownErrors('p', 2, cfg, issues);
+		expect(result.isArchived).toBe(false);
+		expect(result.remaining).toEqual(issues);
+		expect(result.suppressed).toEqual([]);
+		expect(result.contentError).toBeUndefined();
+	});
+
+	it('suppresses only the recorded known errors', () => {
+		const result = archive.filterKnownErrors('p', 1, cfg, [
+			issue('error', 'known'),
+			issue('error', 'new problem'),
+			issue('warn', 'known')
+		]);
+		expect(result.isArchived).toBe(true);
+		expect(result.suppressed).toEqual([issue('error', 'known')]);
+		expect(result.remaining).toEqual([issue('error', 'new problem'), issue('warn', 'known')]);
+	});
+
+	it('reports an error when the archived puzzle content changed or moved', () => {
+		const changed: PuzzleConfig = { ...cfg, templates: [{ shape: [[1, 1]] }] };
+		const result = archive.filterKnownErrors('p', 1, changed, [issue('error', 'known')]);
+		expect(result.suppressed).toEqual([]);
+		expect(result.remaining).toEqual([issue('error', 'known')]);
+		expect(result.contentError).toMatch(/archived puzzle changed or moved/);
+	});
+
+	it('has no content error when the fingerprint matches', () => {
+		expect(archive.filterKnownErrors('p', 1, cfg, []).contentError).toBeUndefined();
+	});
+
+	it('lists archived entries whose puzzle no longer exists', () => {
+		expect(archive.findMissing(() => undefined)).toEqual(['p #1']);
+		expect(archive.findMissing(() => cfg)).toEqual([]);
 	});
 });

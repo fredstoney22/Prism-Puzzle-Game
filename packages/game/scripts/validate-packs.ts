@@ -273,15 +273,35 @@ function validateAutoPackDedup(): Issue[] {
 async function main() {
 	const allIssues: Issue[] = [];
 	const archivedLegacy = new ArchivedLegacyPuzzles(ARCHIVED_LEGACY_PUZZLES);
+	let archivedCount = 0;
+	let suppressedCount = 0;
 
 	for (const pack of packs) {
 		for (const [idStr, cfg] of Object.entries(pack.puzzles)) {
 			const puzzleId = Number(idStr);
-			if (archivedLegacy.isArchived(pack.slug, puzzleId)) {
-				console.log(`[ARCHIVED LEGACY] pack="${pack.slug}" puzzle=${puzzleId}: skipped`);
-				continue;
+			const archived = archivedLegacy.filterKnownErrors(
+				pack.slug,
+				puzzleId,
+				cfg,
+				validateConfig(pack.slug, puzzleId, cfg)
+			);
+			if (archived.isArchived) {
+				archivedCount++;
+				suppressedCount += archived.suppressed.length;
+				console.log(
+					`[ARCHIVED LEGACY] pack="${pack.slug}" puzzle=${puzzleId}: ` +
+						`${archived.suppressed.length} known error(s) suppressed`
+				);
 			}
-			const issues = validateConfig(pack.slug, puzzleId, cfg);
+			const issues = [...archived.remaining];
+			if (archived.contentError !== undefined) {
+				issues.push({
+					severity: 'error',
+					packSlug: pack.slug,
+					puzzleId,
+					message: archived.contentError
+				});
+			}
 			for (const issue of issues) {
 				allIssues.push(issue);
 				logIssue(issue);
@@ -289,19 +309,31 @@ async function main() {
 		}
 	}
 
+	const missingArchived = archivedLegacy.findMissing(
+		(slug, id) => packs.find((p) => p.slug === slug)?.puzzles[id]
+	);
+	for (const missing of missingArchived) {
+		console.log(`[ERROR] archived puzzle changed or moved: ${missing} no longer exists`);
+	}
+
 	for (const issue of validateAutoPackDedup()) {
 		allIssues.push(issue);
 		logIssue(issue);
 	}
 
-	const errorCount = allIssues.filter((i) => i.severity === 'error').length;
+	const errorCount =
+		allIssues.filter((i) => i.severity === 'error').length + missingArchived.length;
 	const warnCount = allIssues.filter((i) => i.severity === 'warn').length;
+	const archivedSummary =
+		`${archivedCount} archived legacy puzzle(s), ${suppressedCount} known error(s) suppressed`;
 
 	if (errorCount === 0 && warnCount === 0) {
-		console.log('✅ All packs and puzzles passed validation.');
+		console.log(`✅ All packs and puzzles passed validation (${archivedSummary}).`);
 		process.exit(0);
 	} else {
-		console.log(`\nValidation complete: ${errorCount} error(s), ${warnCount} warning(s).`);
+		console.log(
+			`\nValidation complete: ${errorCount} error(s), ${warnCount} warning(s); ${archivedSummary}.`
+		);
 		process.exit(errorCount === 0 ? 0 : 1);
 	}
 }

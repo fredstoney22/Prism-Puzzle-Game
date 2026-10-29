@@ -4,7 +4,6 @@
  */
 
 import type { PackDefinition, PuzzleConfig } from '../types.js';
-import type { PuzzleValidationExemption } from '../validationExemptions.js';
 
 export const FIRST_STEPS_SLUG = 'first-steps';
 
@@ -216,25 +215,6 @@ const puzzles: Record<number, PuzzleConfig> = {
 		minMovesToSolve: 4
 	}
 };
-
-/** Deliberate `game:validate` rule breaks in this pack (see validationExemptions.ts). */
-export const FIRST_STEPS_VALIDATION_EXEMPTIONS: readonly PuzzleValidationExemption[] = [
-	{
-		packSlug: FIRST_STEPS_SLUG,
-		puzzleId: 1,
-		rule: 'min-template-active-cells',
-		reason:
-			'Puzzle 1 teaches "Applying a template": a one-cell lens makes each tap flip exactly one cell.'
-	},
-	{
-		packSlug: FIRST_STEPS_SLUG,
-		puzzleId: 6,
-		rule: 'template-containment',
-		reason:
-			'Puzzle 6 teaches "Multi-color lenses": templates 1 and 2 share a two-cell shape but carry ' +
-			'different pigments (blue vs red), so they are not redundant moves.'
-	}
-];
 
 export const firstStepsPack: PackDefinition = {
 	name: 'First Steps',

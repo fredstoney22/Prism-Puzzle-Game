@@ -27,8 +27,8 @@ describe('ARCHIVED_LEGACY_PUZZLES', () => {
 	it('is frozen to the one-time 2026-10-29 archive', () => {
 		expect(
 			ARCHIVED_LEGACY_PUZZLES.map(label),
-			'The legacy archive is closed. Do not add puzzles here: build new puzzles with the 3x3 ' +
-				'engine (simplePuzzleGeneration.ts) so they pass game:validate.'
+			'The legacy archive is closed. Do not add puzzles here: create new puzzles with the 3x3 ' +
+				'creation engine so they pass game:validate; see docs/generation-engine-overhaul.md.'
 		).toEqual(EXPECTED_ARCHIVE);
 		expect(Object.isFrozen(ARCHIVED_LEGACY_PUZZLES)).toBe(true);
 	});

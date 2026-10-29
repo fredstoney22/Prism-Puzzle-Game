@@ -4,7 +4,7 @@
  *
  * These shipped puzzles predate current `game:validate` rules. They stay playable and
  * unchanged; `game:validate` skips them. This list is closed: new puzzles must pass
- * validation (build them with the 3x3 engine in simplePuzzleGeneration.ts), and
+ * validation (create them with the 3x3 creation engine; see docs/generation-engine-overhaul.md), and
  * archivedLegacyPuzzles.test.ts fails if an entry is added.
  */
 

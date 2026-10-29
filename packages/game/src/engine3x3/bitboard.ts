@@ -34,45 +34,58 @@ export interface PuzzleVecs {
 	minMovesToSolve?: number;
 }
 
-/** Thrown when a grid or config isn't a 3×3 board with 3×3 lenses. */
-export class NotThreeByThreeError extends Error {
-	constructor(what: string) {
-		super(`${what} must be a 3×3 grid`);
-		this.name = 'NotThreeByThreeError';
+/** Thrown when a grid isn't a 3×3 grid of integer pigments 0–7. */
+export class InvalidGridError extends Error {
+	constructor(what: string, reason: string) {
+		super(`${what} ${reason}`);
+		this.name = 'InvalidGridError';
 	}
 }
 
 const SIZE = 3;
 const CELLS = SIZE * SIZE;
 const CELL_MASK = 0x1ff;
-const LAYER_BITS = [1, 2, 4] as const;
+const LAYERS = 3;
 
-function assertThreeByThree(grid: PuzzleGrid, what: string): void {
-	if (grid.length !== SIZE || grid.some((row) => row.length !== SIZE)) {
-		throw new NotThreeByThreeError(what);
-	}
+function isPigment(value: unknown): value is Pigment {
+	return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 7;
 }
 
-/** Packs a 3×3 pigment grid into a Vec. Throws `NotThreeByThreeError` otherwise. */
-export function gridToVec(grid: PuzzleGrid): Vec {
-	assertThreeByThree(grid, 'Grid');
+/** Pigment at row-major cell 0–8 of a Vec. Module-private: callers pass in-range cells. */
+function pigmentAt(vec: Vec, cell: number): Pigment {
+	let pigment = 0;
+	for (let layer = 0; layer < LAYERS; layer++) {
+		pigment |= ((vec >>> (layer * CELLS + cell)) & 1) << layer;
+	}
+	return pigment as Pigment;
+}
+
+/**
+ * Packs a 3×3 pigment grid (board or lens) into a Vec. Throws `InvalidGridError`,
+ * prefixed with `what`, for a missing row, wrong dimensions, or a cell that isn't
+ * an integer pigment 0–7.
+ */
+export function gridToVec(grid: PuzzleGrid, what = 'Grid'): Vec {
+	if (!Array.isArray(grid) || grid.length !== SIZE) {
+		throw new InvalidGridError(what, 'must be a 3×3 grid');
+	}
 	let vec = 0;
-	for (let cell = 0; cell < CELLS; cell++) {
-		const pigment = grid[Math.floor(cell / SIZE)][cell % SIZE];
-		LAYER_BITS.forEach((bit, layer) => {
-			if (pigment & bit) vec |= 1 << (layer * CELLS + cell);
-		});
+	for (let r = 0; r < SIZE; r++) {
+		const row: unknown = grid[r];
+		if (!Array.isArray(row) || row.length !== SIZE) {
+			throw new InvalidGridError(what, 'must be a 3×3 grid');
+		}
+		for (let c = 0; c < SIZE; c++) {
+			const pigment: unknown = row[c];
+			if (!isPigment(pigment)) {
+				throw new InvalidGridError(what, `has an invalid pigment at (${r},${c})`);
+			}
+			for (let layer = 0; layer < LAYERS; layer++) {
+				if ((pigment >>> layer) & 1) vec |= 1 << (layer * CELLS + r * SIZE + c);
+			}
+		}
 	}
 	return vec;
-}
-
-/** Pigment at row-major cell index 0–8 of a Vec. */
-export function cellPigment(vec: Vec, cell: number): Pigment {
-	let pigment = 0;
-	LAYER_BITS.forEach((bit, layer) => {
-		if ((vec >>> (layer * CELLS + cell)) & 1) pigment |= bit;
-	});
-	return pigment as Pigment;
 }
 
 /** Unpacks a Vec into a fresh 3×3 pigment grid. */
@@ -80,7 +93,7 @@ export function vecToGrid(vec: Vec): PuzzleGrid {
 	const grid: PuzzleGrid = [];
 	for (let r = 0; r < SIZE; r++) {
 		const row: Pigment[] = [];
-		for (let c = 0; c < SIZE; c++) row.push(cellPigment(vec, r * SIZE + c));
+		for (let c = 0; c < SIZE; c++) row.push(pigmentAt(vec, r * SIZE + c));
 		grid.push(row);
 	}
 	return grid;
@@ -93,7 +106,7 @@ export function rotateVec(vec: Vec): Vec {
 		for (let c = 0; c < SIZE; c++) {
 			const from = (SIZE - 1 - c) * SIZE + r;
 			const to = r * SIZE + c;
-			for (let layer = 0; layer < LAYER_BITS.length; layer++) {
+			for (let layer = 0; layer < LAYERS; layer++) {
 				if ((vec >>> (layer * CELLS + from)) & 1) out |= 1 << (layer * CELLS + to);
 			}
 		}
@@ -113,29 +126,34 @@ export function dirtyCells(vec: Vec): number {
 	return (vec | (vec >>> CELLS) | (vec >>> (2 * CELLS))) & CELL_MASK;
 }
 
-/** Vec of a grid where every cell holds `pigment`. */
-export function uniformVec(pigment: Pigment): Vec {
+function uniformVec(pigment: number): Vec {
 	let vec = 0;
-	LAYER_BITS.forEach((bit, layer) => {
-		if (pigment & bit) vec |= CELL_MASK << (layer * CELLS);
-	});
+	for (let layer = 0; layer < LAYERS; layer++) {
+		if ((pigment >>> layer) & 1) vec |= CELL_MASK << (layer * CELLS);
+	}
 	return vec;
 }
 
+/** Vec of a board with every cell set to pigment `p`, indexed by `p`. */
+const UNIFORM_VECS: readonly Vec[] = [0, 1, 2, 3, 4, 5, 6, 7].map(uniformVec);
+
 /** Bitboard counterpart of `isSolved`: every cell equals `solvedValue` (default clear). */
 export function isSolvedVec(vec: Vec, solvedValue: Pigment = 0): boolean {
-	return vec === uniformVec(solvedValue);
+	return vec === UNIFORM_VECS[solvedValue];
 }
 
 /**
- * All distinct legal moves for a lens set on a 3×3 board: each lens at each
- * rotation 0–3, skipping orientations whose Vec was already produced (rotational
- * symmetry or a duplicate lens) and empty lenses, which are no-ops.
+ * All legal moves for a lens set on a 3×3 board: each lens at each of its
+ * distinct rotations 0–3. Dedup is per lens (rotational symmetry only), so every
+ * non-empty lens owns its own placements even when it is a rotation or copy of
+ * another lens; those placements then share a `vec`. Empty lenses are no-ops and
+ * get no placements.
  */
 export function placementsFor(lenses: Vec[]): Placement[] {
 	const placements: Placement[] = [];
-	const seen = new Set<Vec>([0]);
 	lenses.forEach((lensVec, lens) => {
+		if (lensVec === 0) return;
+		const seen = new Set<Vec>();
 		let vec = lensVec;
 		for (let rotation = 0; rotation < 4; rotation++) {
 			if (!seen.has(vec)) {
@@ -148,13 +166,11 @@ export function placementsFor(lenses: Vec[]): Placement[] {
 	return placements;
 }
 
-/** Packs a 3×3-board / 3×3-lens `PuzzleConfig`. Throws `NotThreeByThreeError` otherwise. */
+/** Packs a 3×3-board / 3×3-lens `PuzzleConfig`. Throws `InvalidGridError` otherwise. */
 export function configToVec(config: PuzzleConfig): PuzzleVecs {
-	assertThreeByThree(config.startState, 'Board');
-	config.templates.forEach((t, i) => assertThreeByThree(t.shape, `Lens ${i}`));
 	const vecs: PuzzleVecs = {
-		start: gridToVec(config.startState),
-		lenses: config.templates.map((t) => gridToVec(t.shape)),
+		start: gridToVec(config.startState, 'Board'),
+		lenses: config.templates.map((t, i) => gridToVec(t.shape, `Lens ${i}`)),
 		solvedValue: config.solvedValue
 	};
 	if (config.minMovesToSolve !== undefined) vecs.minMovesToSolve = config.minMovesToSolve;

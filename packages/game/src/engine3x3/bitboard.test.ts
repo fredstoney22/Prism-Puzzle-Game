@@ -5,7 +5,7 @@ import { applyTemplate, isSolved } from '../PuzzleFunctions.js';
 import { orientTemplate } from '../templatePigment.js';
 import type { Pigment, PuzzleConfig, PuzzleGrid, PuzzleTemplate } from '../types.js';
 import {
-	NotThreeByThreeError,
+	InvalidGridError,
 	configToVec,
 	dirtyCells,
 	gridToVec,
@@ -112,7 +112,7 @@ describe('engine3x3/bitboard', () => {
 			[4, 4, 4],
 			[0, 0, 0]
 		];
-		const placements = placementsFor([lShape, plus, bar].map(gridToVec));
+		const placements = placementsFor([lShape, plus, bar].map((grid) => gridToVec(grid)));
 		expect(placements.map((p) => [p.lens, p.rotation])).toEqual([
 			[0, 0],
 			[0, 1],
@@ -122,6 +122,31 @@ describe('engine3x3/bitboard', () => {
 			[2, 0],
 			[2, 1]
 		]);
+	});
+
+	it('placementsFor gives every lens its own placements, even a rotated duplicate', () => {
+		const lShape: PuzzleGrid = [
+			[1, 0, 0],
+			[1, 0, 0],
+			[1, 1, 0]
+		];
+		const lens = gridToVec(lShape);
+		const placements = placementsFor([lens, rotateVec(lens), lens]);
+		expect(placements.map((p) => [p.lens, p.rotation])).toEqual([
+			[0, 0],
+			[0, 1],
+			[0, 2],
+			[0, 3],
+			[1, 0],
+			[1, 1],
+			[1, 2],
+			[1, 3],
+			[2, 0],
+			[2, 1],
+			[2, 2],
+			[2, 3]
+		]);
+		expect(placements[4].vec).toBe(placements[1].vec);
 	});
 
 	it('placementsFor skips empty lenses', () => {
@@ -171,6 +196,45 @@ describe('engine3x3/bitboard', () => {
 		}
 	});
 
+	it('rejects missing rows and out-of-range pigments with InvalidGridError', () => {
+		const badGrids: unknown[] = [
+			null,
+			[[0, 0, 0], null, [0, 0, 0]],
+			[
+				[0, 0, 0],
+				[0, 0],
+				[0, 0, 0]
+			],
+			[
+				[0, 0, 0],
+				[0, 8, 0],
+				[0, 0, 0]
+			],
+			[
+				[0, 0, 0],
+				[0, -1, 0],
+				[0, 0, 0]
+			],
+			[
+				[0, 0, 0],
+				[0, 1.5, 0],
+				[0, 0, 0]
+			],
+			[
+				[0, 0, 0],
+				[0, null, 0],
+				[0, 0, 0]
+			]
+		];
+		for (const grid of badGrids) {
+			expect(() => gridToVec(grid as PuzzleGrid)).toThrow(InvalidGridError);
+		}
+		const lens = { shape: badGrids[1] as PuzzleGrid };
+		expect(() =>
+			configToVec({ startState: vecToGrid(0), templates: [lens], solvedValue: 0 })
+		).toThrow('Lens 0');
+	});
+
 	it('rejects configs that are not 3x3 board with 3x3 lenses', () => {
 		const board: PuzzleGrid = [
 			[1, 0, 0],
@@ -185,9 +249,9 @@ describe('engine3x3/bitboard', () => {
 		};
 		expect(() =>
 			configToVec({ startState: board, templates: [smallLens], solvedValue: 0 })
-		).toThrow(NotThreeByThreeError);
+		).toThrow(InvalidGridError);
 		expect(() =>
 			configToVec({ startState: [[1, 0, 0, 0]], templates: [], solvedValue: 0 })
-		).toThrow(NotThreeByThreeError);
+		).toThrow(InvalidGridError);
 	});
 });

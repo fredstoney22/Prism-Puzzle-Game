@@ -148,7 +148,7 @@ LensCatalog ──► LensSetSampler ──► SolutionSpaceEnumerator ──►
 
 | Component | Responsibility | Notes |
 |---|---|---|
-| `bitboard.ts` | `Vec` encoding, `lensToVec`, `rotateLens`, `placementsFor(lenses)`, `dirtyCells`, `popcount`, plus `PuzzleConfig` ↔ `Vec` conversion | Pure functions. Unit-tested for equivalence with `applyTemplate` on random inputs. |
+| `bitboard.ts` | `Vec` encoding (`gridToVec` / `vecToGrid`, for boards and lenses), `rotateVec`, `placementsFor(lenses)`, `isSolvedVec`, `dirtyCells`, `popcount`, plus `PuzzleConfig` ↔ `Vec` conversion (`configToVec` / `vecToConfig`) | Pure functions. Unit-tested for equivalence with `applyTemplate` on random inputs. |
 | `LensCatalog` | Canonical lenses under rotation, filtered by active-cell bounds, palette, and "no containment" (reuse `templateContainment.ts`) | Mono: **139** rotation classes of non-empty 3×3 masks (measured), so the catalog is precomputed and every 1–3-lens set (C(139,3) ≈ 438k triples) can be enumerated offline. Primaries-only color (the default): 4^9 = 262,144 grids (~65.6k classes), so sample. With the optional secondary-colour lever: 8^9 ≈ 134M grids, so sample only. |
 | `LensSetSampler` | Picks `k ∈ {1,2,3}` lenses for a pack slot, honoring palette (primaries by default; secondaries only when the recipe enables them), multi-color, and diversity constraints. Seeded PRNG. | New-engine counterpart of `buildGeneratorTemplates` / `buildCanonicalTemplatePool` (those stay for legacy callers) |
 | `SolutionSpaceEnumerator` | Gray-code subset walk producing the SST (§2) | **This is generation and verification at once.** About 1 ms per lens set. |

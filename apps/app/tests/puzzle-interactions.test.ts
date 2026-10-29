@@ -39,7 +39,14 @@ async function getGridState(page: Parameters<typeof test>[0]['page'], size: numb
 
 async function startTutorial(page: Parameters<typeof test>[0]['page']) {
   await page.goto('/tutorial');
-  await page.getByRole('button', { name: 'Start' }).click();
+  // A click that lands before hydration is lost, so retry until the walkthrough advances.
+  const start = page.getByRole('button', { name: 'Start' });
+  await expect(async () => {
+    if (await start.isVisible()) await start.click();
+    await expect(page.getByRole('heading', { name: 'Select the lens' })).toBeVisible({
+      timeout: 1000
+    });
+  }).toPass();
 }
 
 test.describe('Puzzle interactions — tutorial 3x3 board', () => {
@@ -51,16 +58,17 @@ test.describe('Puzzle interactions — tutorial 3x3 board', () => {
     // Select first template
     await page.getByTestId('template-0').click();
 
-    const beforePreview = await cellAriaLabel(page, 1, 1);
+    // Cell (0,0) is part of the tutorial lens pattern, so the preview changes it.
+    const beforePreview = await cellAriaLabel(page, 0, 0);
 
     // Hover top-left cell — preview snaps to the only valid 3×3 placement
     await moveToCellCenter(page, 0, 0);
-    const afterHoverTopLeft = await cellAriaLabel(page, 1, 1);
+    const afterHoverTopLeft = await cellAriaLabel(page, 0, 0);
     expect(afterHoverTopLeft).not.toEqual(beforePreview);
 
     // Hover bottom-right cell — still snapped to the same center
     await moveToCellCenter(page, 2, 2);
-    const afterHoverBottomRight = await cellAriaLabel(page, 1, 1);
+    const afterHoverBottomRight = await cellAriaLabel(page, 0, 0);
     expect(afterHoverBottomRight).toEqual(afterHoverTopLeft);
   });
 
@@ -74,6 +82,25 @@ test.describe('Puzzle interactions — tutorial 3x3 board', () => {
 
     const after = await getGridState(page, 3);
     expect(after).not.toEqual(before);
+  });
+
+  test('tutorial: following the steps solves the puzzle in two moves', async ({ page }) => {
+    await startTutorial(page);
+    const lens = page.getByTestId('template-0');
+
+    // Move 1: select the lens and apply it unrotated.
+    await lens.click();
+    await cellLocator(page, 1, 1).click();
+    await expect(page.getByRole('heading', { name: 'Spin the lens' })).toBeVisible();
+
+    // Move 2: a move deselects the lens, so tap once to select and again to rotate 90°.
+    await lens.click();
+    await lens.click();
+    await expect(page.getByRole('heading', { name: 'Apply the second move' })).toBeVisible();
+    await cellLocator(page, 1, 1).click();
+
+    await expect(page.getByRole('heading', { name: 'Prism cleared!' })).toBeVisible();
+    await expect(page.getByText('Perfect! 2 moves')).toBeVisible();
   });
 
   test('dragging a template onto the grid shows preview and applies on release', async ({ page }) => {

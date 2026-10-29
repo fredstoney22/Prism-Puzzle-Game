@@ -4,6 +4,7 @@
 
 import { repeatSlot, type PackGenerationSpec, type PuzzleSlotSpec } from './packGenerationTypes.js';
 import type { Pigment } from './types.js';
+import type { PuzzleValidationExemption } from './validationExemptions.js';
 
 const mono = (targetMinMoves: number, templateSizes: number[]): PuzzleSlotSpec => ({
 	kind: 'mono',
@@ -222,6 +223,21 @@ export const COLOR_LADDER_PUZZLE_6 = {
 	solvedValue: 0 as const,
 	minMovesToSolve: 3
 };
+
+/**
+ * Color Ladder #7–10 are generated with `minTemplatesPerPigment: 1` (see the spec above) so a
+ * 3-template puzzle can carry 2–3 colours. Some colour therefore has only one template.
+ */
+export const COLOR_LADDER_VALIDATION_EXEMPTIONS: readonly PuzzleValidationExemption[] = [7, 8, 9, 10].map(
+	(puzzleId) => ({
+		packSlug: 'color-ladder',
+		puzzleId,
+		rule: 'multi-pigment-template-count' as const,
+		reason:
+			'Color Ladder caps multi-colour puzzles at 3 templates and is generated with ' +
+			'minTemplatesPerPigment: 1, so one colour deliberately has a single template.'
+	})
+);
 
 /** Regeneration specs for hand-maintained packs (e.g. containment fixes). */
 export const COLOR_LAB_REGEN_SLOTS: PuzzleSlotSpec[] = [

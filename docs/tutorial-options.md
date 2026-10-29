@@ -92,7 +92,7 @@ There are also small copy nits: `GOAL` is an empty string, so card bodies start 
 
 ### What happens to the existing `/tutorial` and First Steps
 
-- **`/tutorial`:** Keep the route and fix B1 only. Once the tutorial pack ships, consider pointing the no-params `/tutorial` at tutorial pack puzzle 1 (T11, optional and needs owner go-ahead). It differs from the First Steps redirect the owner rejected, but still needs explicit approval. It would stops two separate beginner experiences from drifting apart.
+- **`/tutorial`:** Keep the route and fix B1 only. Once the tutorial pack ships, consider pointing the no-params `/tutorial` at tutorial pack puzzle 1 (T11, optional and needs owner go-ahead). It differs from the First Steps redirect the owner rejected, but still needs explicit approval. It would stop two separate beginner experiences from drifting apart.
 - **First Steps:** Keep it as a free practice pack and fix B2 and B3 only. Move its "Start here!" tagline (`PACK_SHORT_DESCRIPTIONS`) to the tutorial pack so there's one obvious starting point. Leave its walkthrough copy alone.
 
 ---

@@ -3,7 +3,8 @@ import { PIGMENT_CLEAR_SOLVED_VALUE } from '@flip/game';
 
 /**
  * Tutorial: one 3×3 lens, two moves. The first move uses the lens as dealt;
- * the second needs it rotated 90° clockwise (one tap on the selected lens).
+ * the second needs it rotated 90° clockwise (after a move the lens is
+ * deselected, so that is two taps: select, then rotate).
  * The two orientations cover disjoint cells, so each move only clears colour.
  */
 export const TUTORIAL_PUZZLE_CONFIG: PuzzleConfig = {

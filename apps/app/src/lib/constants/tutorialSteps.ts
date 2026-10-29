@@ -64,13 +64,13 @@ export const DEFAULT_TUTORIAL: TutorialConfig = {
     },
     {
       title: 'Spin the lens',
-      body: 'Tap the lens to select it, then tap it again to rotate it 90°. Its pattern now matches the squares that are left.',
+      body: 'Tap the lens to select it, then tap it again to rotate it. Keep tapping until its pattern matches the colored squares that are left. Placed it too soon? Tap Undo.',
       action: 'wait',
       advanceOn: 'templateRotate'
     },
     {
       title: 'Apply the second move',
-      body: 'Tap the Prism Square to apply the rotated lens and solve the puzzle.',
+      body: 'Tap the Prism Square to apply the lens. If the pattern does not match yet, tap the lens to keep rotating. If color comes back, tap Undo.',
       action: 'wait',
       advanceOn: 'solve'
     },

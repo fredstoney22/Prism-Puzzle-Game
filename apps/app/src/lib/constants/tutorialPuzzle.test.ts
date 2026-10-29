@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyTemplate, orientTemplate, solveMinMoves } from '@flip/game';
+import { applyTemplate, isPuzzleSolved, orientTemplate, solveMinMoves } from '@flip/game';
 import { TUTORIAL_PUZZLE_CONFIG } from './tutorialPuzzle';
 
 describe('TUTORIAL_PUZZLE_CONFIG', () => {
@@ -22,8 +22,8 @@ describe('TUTORIAL_PUZZLE_CONFIG', () => {
   it('clears the board when the lens is applied unrotated, then after one 90° spin', () => {
     const lens = config.templates[0];
     const afterFirst = applyTemplate(config.startState, orientTemplate(lens, 0), 0, 0);
-    expect(afterFirst.flat().every((cell) => cell === config.solvedValue)).toBe(false);
+    expect(isPuzzleSolved(config, afterFirst)).toBe(false);
     const afterSecond = applyTemplate(afterFirst, orientTemplate(lens, 1), 0, 0);
-    expect(afterSecond.flat().every((cell) => cell === config.solvedValue)).toBe(true);
+    expect(isPuzzleSolved(config, afterSecond)).toBe(true);
   });
 });

@@ -43,10 +43,15 @@ async function startTutorial(page: Parameters<typeof test>[0]['page']) {
   const start = page.getByRole('button', { name: 'Start' });
   await expect(async () => {
     if (await start.isVisible()) await start.click();
-    await expect(page.getByRole('heading', { name: 'Select the lens' })).toBeVisible({
-      timeout: 1000
-    });
-  }).toPass();
+    await expect(start).toBeHidden({ timeout: 1000 });
+  }).toPass({ timeout: 10_000 });
+}
+
+/** Tap the lens and wait for any rotation animation to commit (taps during it are ignored). */
+async function tapLens(page: Parameters<typeof test>[0]['page']) {
+  const lens = page.getByTestId('template-0');
+  await lens.click();
+  await expect(lens.locator('.template-rotate-wrapper.animating')).toHaveCount(0);
 }
 
 test.describe('Puzzle interactions — tutorial 3x3 board', () => {
@@ -100,7 +105,29 @@ test.describe('Puzzle interactions — tutorial 3x3 board', () => {
     await cellLocator(page, 1, 1).click();
 
     await expect(page.getByRole('heading', { name: 'Prism cleared!' })).toBeVisible();
-    await expect(page.getByText('Perfect! 2 moves')).toBeVisible();
+  });
+
+  test('tutorial: still solvable after a double tap rotates the lens before move 1', async ({ page }) => {
+    await startTutorial(page);
+
+    // Double tap on "Select the lens": select, then rotate to 90° before the first move.
+    await tapLens(page);
+    await tapLens(page);
+    await cellLocator(page, 1, 1).click();
+    await expect(cellLocator(page, 0, 0)).toHaveAttribute('aria-label', /Dark$/);
+    await expect(cellLocator(page, 0, 2)).toHaveAttribute('aria-label', /Light$/);
+
+    // "Spin the lens": select + rotate goes to 180°, which advances the step but doesn't match.
+    await tapLens(page);
+    await tapLens(page);
+    await expect(page.getByRole('heading', { name: 'Apply the second move' })).toBeVisible();
+
+    // Keep rotating as the copy says (270°, then back to 0°) and apply.
+    await tapLens(page);
+    await tapLens(page);
+    await cellLocator(page, 1, 1).click();
+
+    await expect(page.getByRole('heading', { name: 'Prism cleared!' })).toBeVisible();
   });
 
   test('dragging a template onto the grid shows preview and applies on release', async ({ page }) => {

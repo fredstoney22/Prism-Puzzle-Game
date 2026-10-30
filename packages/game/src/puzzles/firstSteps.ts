@@ -37,7 +37,7 @@ const puzzles: Record<number, PuzzleConfig> = {
 			}
 		],
 		solvedValue: 0,
-		minMovesToSolve: 1
+		minMovesToSolve: 3
 	},
 	2: {
 		startState: [

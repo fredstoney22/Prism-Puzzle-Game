@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { solveMinMoves } from '../PuzzleGenerator.js';
 import { createPedagogyValidator } from '../generation/pedagogyValidator.js';
-import { firstStepsPack, FIRST_STEPS_CONCEPTS, getFirstStepsConcept } from './firstSteps.js';
+import { getPackBySlug } from '../packs.js';
+import {
+	firstStepsPack,
+	FIRST_STEPS_CONCEPTS,
+	FIRST_STEPS_SLUG,
+	getFirstStepsConcept
+} from './firstSteps.js';
 import { requiresEveryTemplate, requiresTemplateRotation } from './firstStepsPedagogy.js';
 
 const pedagogy = createPedagogyValidator({ maxDepth: 12 });
@@ -33,6 +39,20 @@ describe('firstStepsPack', () => {
 			if (idStr === '8') continue;
 			const verified = solveMinMoves(cfg, 12);
 			expect(verified, `puzzle ${idStr}`).not.toBeNull();
+		}
+	});
+
+	it('every puzzle declares minMovesToSolve equal to solveMinMoves', () => {
+		for (const [idStr, cfg] of Object.entries(firstStepsPack.puzzles)) {
+			expect(cfg.minMovesToSolve, `puzzle ${idStr}`).toBe(solveMinMoves(cfg, 12));
+		}
+	});
+
+	it('inline packs.ts first-steps block declares minMovesToSolve equal to solveMinMoves', () => {
+		const shipped = getPackBySlug(FIRST_STEPS_SLUG);
+		expect(shipped, 'first-steps pack in packs.ts').toBeDefined();
+		for (const [idStr, cfg] of Object.entries(shipped!.puzzles)) {
+			expect(cfg.minMovesToSolve, `puzzle ${idStr}`).toBe(solveMinMoves(cfg, 12));
 		}
 	});
 

@@ -141,6 +141,11 @@ function uniformVec(pigment: number): Vec {
 /** Vec of a board with every cell set to pigment `p`, indexed by `p`. */
 const UNIFORM_VECS: readonly Vec[] = [0, 1, 2, 3, 4, 5, 6, 7].map(uniformVec);
 
+/** Vec of the solved board for `solvedValue` (every cell equal to it). */
+export function solvedVec(solvedValue: Pigment): Vec {
+	return UNIFORM_VECS[solvedValue];
+}
+
 /** Bitboard counterpart of `isSolved`: every cell equals `solvedValue`. */
 export function isSolvedVec(vec: Vec, solvedValue: Pigment): boolean {
 	return vec === UNIFORM_VECS[solvedValue];
